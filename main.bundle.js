@@ -29,7 +29,10 @@ var MapsService = (function () {
         this.dialog = dialog;
         this.markers = [];
         this.places = [];
+        this.markersRoute = [];
         //directions.setMap(this.map);
+        this.counter = 1;
+        this.directionsDisplayArray = [];
         this.placesEmitter = new __WEBPACK_IMPORTED_MODULE_0__angular_core__["f" /* EventEmitter */]();
         this._window = window;
     }
@@ -41,13 +44,13 @@ var MapsService = (function () {
     };
     MapsService.prototype.setupMapService = function (map) {
         this.directionsService = new this._window.google.maps.DirectionsService;
-        this.directionsDisplay = new this._window.google.maps.DirectionsRenderer;
+        this.directionsDisplay = new this._window.google.maps.DirectionsRenderer({ suppressMarkers: true });
         this.map = map;
         this.directionsDisplay.setMap(this.map);
     };
     MapsService.prototype.loadMap = function () {
         this.directionsService = new this._window.google.maps.DirectionsService;
-        this.directionsDisplay = new this._window.google.maps.DirectionsRenderer;
+        this.directionsDisplay = new this._window.google.maps.DirectionsRenderer({ suppressMarkers: true });
         this.map = new this._window.google.maps.Map(document.getElementById('map'), {
             zoom: 7,
             center: { lat: 41.85, lng: -87.65 },
@@ -120,14 +123,29 @@ var MapsService = (function () {
         }, function (response, status) {
             console.log("response", response);
             if (status === _this._window.google.maps.DirectionsStatus.OK) {
-                //let directions = new this._window.google.maps.DirectionsRenderer;
-                //directions.setMap(this.map);
-                _this.directionsDisplay.setDirections(response);
+                var directions = new _this._window.google.maps.DirectionsRenderer({ suppressMarkers: true });
+                directions.setMap(_this.map);
+                directions.setDirections(response);
+                _this.directionsDisplayArray.push(directions);
             }
             else {
                 window.alert('Directions request failed due to ' + status);
             }
         });
+    };
+    MapsService.prototype.cleanMarkers = function () {
+        // Clear out the old markers.
+        this.markers.forEach(function (marker) {
+            marker.setMap(null);
+        });
+        this.markersRoute.forEach(function (marker) {
+            marker.setMap(null);
+        });
+    };
+    MapsService.prototype.cleanMap = function () {
+        this.counter = 1;
+        this.directionsDisplayArray.forEach(function (directions) { return directions.setMap(null); });
+        this.cleanMarkers();
     };
     MapsService.prototype.calcPath = function (firstPlace, allPlaces) {
         var _this = this;
@@ -154,15 +172,30 @@ var MapsService = (function () {
             console.log('min', placeDistance);
             // save origin as a visited
             // draw
-            var directions = new _this._window.google.maps.DirectionsRenderer;
+            var directions = new _this._window.google.maps.DirectionsRenderer({ suppressMarkers: true });
             directions.setMap(_this.map);
             directions.setDirections(placeDistance.responseMaps);
+            _this.directionsDisplayArray.push(directions);
+            var leg = placeDistance.responseMaps.routes[0].legs[0];
+            _this.makeMarker(leg.start_location, _this.counter + '');
+            _this.makeMarker(leg.end_location, (_this.counter + 1) + '');
+            _this.counter++;
             // calculate next
             if (filterPlaces.length > 0) {
                 _this.calcPath(placeDistance.destination, filterPlaces);
             }
+        }, function (error) {
+            //this.dialog.open(DialogComponent);
+            alert('Google maps error ocurred');
         });
         return places;
+    };
+    MapsService.prototype.makeMarker = function (position, label) {
+        this.markersRoute.push(new this._window.google.maps.Marker({
+            position: position,
+            map: this.map,
+            label: label
+        }));
     };
     MapsService.prototype.getDistance = function (origin, destination) {
         var _this = this;
@@ -174,6 +207,9 @@ var MapsService = (function () {
             }, function (response, status) {
                 console.log("response", response);
                 console.log("status", status);
+                if (!response || status === 'OVER_QUERY_LIMIT') {
+                    observer.error();
+                }
                 console.log("origin, dest", [origin, destination]);
                 if (status === _this._window.google.maps.DirectionsStatus.OK && response.routes[0].legs[0].distance) {
                     // console.log(response);
@@ -499,6 +535,7 @@ var AppComponent = (function () {
         /* for(let i = 0; i < places.length-1; i++) {
            this.mapsService.showRoute(places[i].formatted_address, places[i+1].formatted_address);
          }*/
+        this.mapsService.cleanMap();
         this.mapsService.calcPath(places[0], places);
     };
     AppComponent.prototype.loadSearchBox = function () {
@@ -650,7 +687,7 @@ exports = module.exports = __webpack_require__(79)();
 
 
 // module
-exports.push([module.i, ".sebm-google-map-container {\r\n  height: 500px;\r\n  width: 100%;\r\n}\r\n\r\ndiv.app-container {\r\n  margin: 30px;\r\n  display: block;\r\n}\r\n\r\n#map {\r\n  height: 500px;\r\n}\r\n\r\n.top-container {\r\n  display: -webkit-box;\r\n  display: -ms-flexbox;\r\n  display: flex;\r\n  -webkit-box-pack: start;\r\n      -ms-flex-pack: start;\r\n          justify-content: flex-start;\r\n  -webkit-box-align: center;\r\n      -ms-flex-align: center;\r\n          align-items: center;\r\n  margin-top: 10px;\r\n}\r\n.calc-button {\r\n /* width: 90%; */\r\n margin-left: 20px;\r\n}\r\n\r\n.places-container {\r\n  display: block;\r\n  margin: 20px;\r\n  width: 100%;\r\n  height: 100%;\r\n}\r\n\r\n.controls {\r\n  margin-top: 10px;\r\n  border: 1px solid transparent;\r\n  border-radius: 2px 0 0 2px;\r\n  box-sizing: border-box;\r\n  -moz-box-sizing: border-box;\r\n  height: 32px;\r\n  outline: none;\r\n  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);\r\n}\r\n\r\n#pac-input {\r\n  background-color: #fff;\r\n  font-family: Roboto;\r\n  font-size: 15px;\r\n  font-weight: 300;\r\n  margin: 15px;\r\n  padding: 0 11px 0 13px;\r\n  text-overflow: ellipsis;\r\n  width: 300px;\r\n}\r\n\r\n#pac-input:focus {\r\n  border-color: #4d90fe;\r\n}\r\n\r\n.pac-container {\r\n  font-family: Roboto;\r\n}\r\n\r\n#type-selector {\r\n  color: #fff;\r\n  background-color: #4d90fe;\r\n  padding: 5px 11px 0px 11px;\r\n}\r\n\r\n#type-selector label {\r\n  font-family: Roboto;\r\n  font-size: 13px;\r\n  font-weight: 300;\r\n}\r\n\r\nh1 {\r\n  font-family: Roboto,\"Helvetica Neue\",sans-serif;\r\n}\r\n\r\n", ""]);
+exports.push([module.i, ".sebm-google-map-container {\r\n  height: 500px;\r\n  width: 100%;\r\n}\r\n\r\ndiv.app-container {\r\n  margin: 30px;\r\n  display: block;\r\n}\r\n\r\n#map {\r\n  height: 500px;\r\n}\r\n\r\n.top-container {\r\n  display: -webkit-box;\r\n  display: -ms-flexbox;\r\n  display: flex;\r\n  -webkit-box-pack: start;\r\n      -ms-flex-pack: start;\r\n          justify-content: flex-start;\r\n  -webkit-box-align: center;\r\n      -ms-flex-align: center;\r\n          align-items: center;\r\n  margin-top: 10px;\r\n}\r\n.calc-button {\r\n /* width: 90%; */\r\n margin-left: 20px;\r\n}\r\n\r\n.places-container {\r\n  display: block;\r\n  margin: 20px;\r\n  width: 100%;\r\n  height: 100%;\r\n}\r\n\r\n.controls {\r\n  margin-top: 10px;\r\n  border: 1px solid transparent;\r\n  border-radius: 2px 0 0 2px;\r\n  box-sizing: border-box;\r\n  -moz-box-sizing: border-box;\r\n  height: 32px;\r\n  outline: none;\r\n  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);\r\n}\r\n\r\n#pac-input {\r\n  background-color: #fff;\r\n  font-family: Roboto;\r\n  font-size: 15px;\r\n  font-weight: 300;\r\n  margin: 15px;\r\n  padding: 0 11px 0 13px;\r\n  text-overflow: ellipsis;\r\n  width: 300px;\r\n  margin-left: 0;\r\n}\r\n\r\n#pac-input:focus {\r\n  border-color: #4d90fe;\r\n}\r\n\r\n.pac-container {\r\n  font-family: Roboto;\r\n}\r\n\r\n#type-selector {\r\n  color: #fff;\r\n  background-color: #4d90fe;\r\n  padding: 5px 11px 0px 11px;\r\n}\r\n\r\n#type-selector label {\r\n  font-family: Roboto;\r\n  font-size: 13px;\r\n  font-weight: 300;\r\n}\r\n\r\nh1, h2, h3, h4, h5, h6 {\r\n  font-family: Roboto,\"Helvetica Neue\",sans-serif;\r\n}\r\n\r\n", ""]);
 
 // exports
 
@@ -717,7 +754,7 @@ module.exports = module.exports.toString();
 /***/ 699:
 /***/ (function(module, exports) {
 
-module.exports = "<div class=\"app-container\">\n  <h1>\n    {{title}}\n  </h1>\n\n  <div class=\"top-container\">\n    <input id=\"pac-input\" class=\"controls\" type=\"text\" placeholder=\"Search Box\">\n    <button md-button class=\"calc-button\" (click)=\"calcRoute()\">Calculate</button>\n  </div>\n  <md-grid-list cols=\"2\" rowHeight=\"500\">\n    <md-grid-tile>\n      <agm-map #map [latitude]=\"lat\" [longitude]=\"lng\" [zoom]=\"14\" (mapReady)=\"onMapReady($event)\"></agm-map>\n    </md-grid-tile>\n    <md-grid-tile >\n      <div class=\"places-container\">\n        <h3>Places:</h3>\n        <soup-list [listItems]=\"placesNames\" (itemRemoved)=\"removePlace($event)\"></soup-list>\n\n      </div>\n    </md-grid-tile>\n    </md-grid-list>\n  <!--<div id=\"map\"></div>-->\n\n\n</div>\n"
+module.exports = "<div class=\"app-container\">\n  <h1>\n    {{title}}\n  </h1>\n\n  <div class=\"top-container\">\n    <input id=\"pac-input\" class=\"controls\" type=\"text\" placeholder=\"Search Box\">\n    <button md-button class=\"calc-button\" (click)=\"calcRoute()\">Calculate</button>\n  </div>\n  <md-grid-list cols=\"2\" rowHeight=\"500\">\n    <md-grid-tile>\n      <agm-map #map [latitude]=\"lat\" [longitude]=\"lng\" [zoom]=\"14\" (mapReady)=\"onMapReady($event)\"></agm-map>\n    </md-grid-tile>\n    <md-grid-tile >\n      <div class=\"places-container\">\n        <h3>Places:</h3>\n        <soup-list [listItems]=\"placesNames\" (itemRemoved)=\"removePlace($event)\"></soup-list>\n\n      </div>\n    </md-grid-tile>\n  </md-grid-list>\n  <h6>\n    Created by: Albert Cullell & Llorenç Pujol\n  </h6>\n\n\n</div>\n"
 
 /***/ }),
 
